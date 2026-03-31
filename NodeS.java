@@ -67,8 +67,8 @@ public class NodeS {
 		// Initialize core components
 		this.port = 4225;
 		this.random = new Random(4225);
-		int nodeId = Math.abs(nodeName.hashCode() % 100) + 1;
-		this.clock = new LamportClock(nodeId);
+		int lamportIncrement = getLamportIncrement(nodeIP);
+		this.clock = new LamportClock(lamportIncrement);
 		this.remoteNodes = new ArrayList<>();
 		this.workersLatch = new CountDownLatch(numThreads);
 
@@ -117,6 +117,31 @@ public class NodeS {
 		if (logWriter != null) {
 			logWriter.println(message);
 		}
+	}
+
+	/**
+	 * Extracts the Lamport increment value from an IP address.
+	 * Uses the last non-zero digit of the last octet.
+	 *
+	 * @param ip the IP adress (e.g., "160.10.23.18"
+	 *
+	 * @return the increment value (1-9)
+	 */
+	private int getLamportIncrement(String ip) {
+		String[] parts = ip.split("\\.");
+		if (parts.length == 4) {
+			String lastOctet = parts[3];
+
+			// Find the last non-zero digit
+			for (int i = lastOctet.length() - 1; i >= 0; i--) {
+				char c = lastOctet.charAt(i);
+				if (c != '0') {
+					return Character.getNumericValue(c);
+				}
+			}
+		}
+
+		return 1; // default to 1 if no non-zero digit found
 	}
 
 	/**

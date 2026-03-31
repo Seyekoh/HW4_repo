@@ -1,0 +1,167 @@
+Loaded 2 remote nodes
+Node Node1 initialized on IP 127.0.0.1
+Configuration: threads = 4, eventsPerThread = 20, remoteSendPercent = 30%
+Node Node1 listening on port 4225
+Starting 4 worker threads with 20 events each
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 40
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 60
+Thread-0 SENT: Event from Node1 to Node3 with timestamp 20
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 120
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 80
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 140
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 100
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 200
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 220
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 240
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 260
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 300
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 320
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 340
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 360
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 380
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 400
+Thread-2 SENT: Event from Node1 to Node3 with timestamp 160
+Thread-3 SENT: Event from Node1 to Node3 with timestamp 180
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 440
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 480
+Thread-0 SENT: Event from Node1 to Node3 with timestamp 280
+Thread-1 SENT: Event from Node1 to Node2 with timestamp 420
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 540
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 560
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 580
+Thread-3 SENT: Event from Node1 to Node3 with timestamp 460
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 600
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 640
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 660
+Thread-0 SENT: Event from Node1 to Node2 with timestamp 500
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 700
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 720
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 740
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 760
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 780
+Thread-0 SENT: Event from Node1 to Node3 with timestamp 800
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 820
+Thread-0 SENT: Event from Node1 to Node2 with timestamp 840
+Thread-2 SENT: Event from Node1 to Node3 with timestamp 680
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 880
+Thread-0 SENT: Event from Node1 to Node3 with timestamp 860
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 920
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 940
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 960
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 980
+Thread-0 LOCAL: Event from Node1 to Node1 with timestamp 1000
+Thread-3 SENT: Event from Node1 to Node2 with timestamp 620
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1020
+Thread-3 SENT: Event from Node1 to Node3 with timestamp 1040
+Thread-1 SENT: Event from Node1 to Node3 with timestamp 520
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 1080
+Thread-3 SENT: Event from Node1 to Node3 with timestamp 1060
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1120
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1140
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1160
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1180
+Thread-3 SENT: Event from Node1 to Node2 with timestamp 1200
+Thread-2 SENT: Event from Node1 to Node3 with timestamp 900
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1220
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1260
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1280
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 1240
+Thread-1 SENT: Event from Node1 to Node2 with timestamp 1100
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1300
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 1320
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 1340
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 1380
+Thread-2 LOCAL: Event from Node1 to Node1 with timestamp 1420
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 1400
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 1460
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 1480
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 1500
+Thread-1 LOCAL: Event from Node1 to Node1 with timestamp 1520
+Thread-3 SENT: Event from Node1 to Node2 with timestamp 1360
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1540
+Thread-3 LOCAL: Event from Node1 to Node1 with timestamp 1560
+Thread-2 SENT: Event from Node1 to Node2 with timestamp 1440
+Thread-3 SENT: Event from Node1 to Node3 with timestamp 1580
+Thread-2 SENT: Event from Node1 to Node3 with timestamp 1600
+RECEIVED: Event from Node1 to Node3 with timestamp 160
+RECEIVED: Event from Node1 to Node3 with timestamp 280
+RECEIVED: Event from Node1 to Node3 with timestamp 800
+RECEIVED: Event from Node1 to Node3 with timestamp 860
+RECEIVED: Event from Node1 to Node2 with timestamp 1200
+RECEIVED: Event from Node1 to Node2 with timestamp 620
+RECEIVED: Event from Node1 to Node2 with timestamp 420
+RECEIVED: Event from Node1 to Node3 with timestamp 1040
+RECEIVED: Event from Node1 to Node2 with timestamp 1440
+RECEIVED: Event from Node1 to Node3 with timestamp 1060
+RECEIVED: Event from Node1 to Node3 with timestamp 460
+RECEIVED: Event from Node1 to Node3 with timestamp 1580
+RECEIVED: Event from Node1 to Node3 with timestamp 1600
+RECEIVED: Event from Node1 to Node3 with timestamp 180
+RECEIVED: Event from Node1 to Node2 with timestamp 1100
+RECEIVED: Event from Node1 to Node2 with timestamp 1360
+RECEIVED: Event from Node1 to Node3 with timestamp 520
+RECEIVED: Event from Node1 to Node3 with timestamp 20
+RECEIVED: Event from Node1 to Node2 with timestamp 840
+RECEIVED: Event from Node1 to Node2 with timestamp 500
+RECEIVED: Event from Node1 to Node3 with timestamp 900
+RECEIVED: Event from Node1 to Node3 with timestamp 680
+RECEIVED: Event from Node2 to Node3 with timestamp 840
+RECEIVED: Event from Node2 to Node3 with timestamp 294
+RECEIVED: Event from Node2 to Node1 with timestamp 441
+RECEIVED: Event from Node2 to Node3 with timestamp 714
+RECEIVED: Event from Node2 to Node3 with timestamp 21
+RECEIVED: Event from Node2 to Node1 with timestamp 525
+RECEIVED: Event from Node2 to Node3 with timestamp 546
+RECEIVED: Event from Node2 to Node3 with timestamp 168
+RECEIVED: Event from Node2 to Node3 with timestamp 189
+RECEIVED: Event from Node2 to Node3 with timestamp 1092
+RECEIVED: Event from Node2 to Node1 with timestamp 882
+RECEIVED: Event from Node2 to Node3 with timestamp 483
+RECEIVED: Event from Node2 to Node1 with timestamp 1155
+RECEIVED: Event from Node2 to Node3 with timestamp 945
+RECEIVED: Event from Node2 to Node1 with timestamp 1260
+RECEIVED: Event from Node2 to Node1 with timestamp 651
+RECEIVED: Event from Node2 to Node3 with timestamp 903
+RECEIVED: Event from Node2 to Node3 with timestamp 1113
+RECEIVED: Event from Node2 to Node1 with timestamp 1428
+RECEIVED: Event from Node2 to Node1 with timestamp 1512
+RECEIVED: Event from Node2 to Node3 with timestamp 1659
+RECEIVED: Event from Node2 to Node3 with timestamp 1680
+RECEIVED: Event from Node3 to Node1 with timestamp 924
+RECEIVED: Event from Node3 to Node1 with timestamp 550
+RECEIVED: Event from Node3 to Node2 with timestamp 308
+RECEIVED: Event from Node3 to Node2 with timestamp 880
+RECEIVED: Event from Node3 to Node2 with timestamp 198
+RECEIVED: Event from Node3 to Node2 with timestamp 946
+RECEIVED: Event from Node3 to Node2 with timestamp 176
+RECEIVED: Event from Node3 to Node2 with timestamp 22
+RECEIVED: Event from Node3 to Node1 with timestamp 682
+RECEIVED: Event from Node3 to Node2 with timestamp 748
+RECEIVED: Event from Node3 to Node2 with timestamp 506
+RECEIVED: Event from Node3 to Node1 with timestamp 462
+RECEIVED: Event from Node3 to Node2 with timestamp 572
+RECEIVED: Event from Node3 to Node2 with timestamp 990
+RECEIVED: Event from Node3 to Node2 with timestamp 1166
+RECEIVED: Event from Node3 to Node1 with timestamp 1210
+RECEIVED: Event from Node3 to Node2 with timestamp 1144
+RECEIVED: Event from Node3 to Node1 with timestamp 1496
+RECEIVED: Event from Node3 to Node1 with timestamp 1320
+RECEIVED: Event from Node3 to Node1 with timestamp 1584
+RECEIVED: Event from Node3 to Node2 with timestamp 1738
+RECEIVED: Event from Node3 to Node2 with timestamp 1760
+
+=== Node Node1 Statistics ===
+Total events processed: 146
+Messages sent: 22
+Messages received: 66
+Execution time = 7045 ms
+Final Lamport time: 2920
+Throughput: 20.72 events/sec
+
+Events sent to remote nodes:
+  Node3: 14
+  Node2: 8
+
+Total local events generated: 146
+Total remote send percent configured: 30%
+Actual send percentage: 15.07%

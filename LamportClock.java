@@ -1,19 +1,19 @@
 public class LamportClock {
 	private long time;
-	private final int nodeId;
+	private final int increment;
 
-	public LamportClock(int nodeId) {
+	public LamportClock(int increment) {
 		this.time = 0;
-		this.nodeId = nodeId;
+		this.increment = increment;
 	}
 
 	public synchronized long tick() {
-		time += nodeId;
+		time += increment;
 		return time;
 	}
 
 	public synchronized void update(long receivedTime) {
-		time = Math.max(time, receivedTime) + nodeId;
+		time = Math.max(time, receivedTime) + increment;
 	}
 
 	public synchronized long getTime() {
