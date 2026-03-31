@@ -40,6 +40,9 @@ public class NodeS {
 	private ServerSocket serverSocket;
 	private Thread serverThread;
 	private Thread shutdownListenerThread;
+
+	// Logging
+	private PrintWriter logWriter;
 	
 	/**
 	 * Constructor for NodeS
@@ -57,6 +60,9 @@ public class NodeS {
 		this.numThreads = numThreads;
 		this.eventsPerThread = eventsPerThread;
 		this.remoteSendPercent = remoteSendPercent;
+
+		// Initialize logging
+		initLogging();
 
 		// Initialize core components
 		this.port = 4225;
@@ -79,10 +85,38 @@ public class NodeS {
 		// Load remote nodes from CSV
 		loadRemoteNodes();
 
-		System.out.println("Node " + nodeName + " initialized on IP " + nodeIP);
-		System.out.println("Configuration: threads = " + numThreads +
+		log("Node " + nodeName + " initialized on IP " + nodeIP);
+		log("Configuration: threads = " + numThreads +
 							", eventsPerThread = " + eventsPerThread + 
 							", remoteSendPercent = " + remoteSendPercent + "%");
+	}
+
+	/**
+	 * Initialize logging to a file named <nodeName>.log
+	 */
+	private void initLogging() {
+		try {
+			String logFileName = nodeName + ".log";
+			logWriter = new PrintWriter(new FileWriter(logFileName), true);
+			System.out.println("Logging to: " + logFileName);
+		} catch (IOException ex) {
+			System.err.println("Failed to create log file: " + ex.getMessage());
+
+			// Fallback to console only
+			logWriter = null;
+		}
+	}
+
+	/**
+	 * Log a message to both console and log file
+	 *
+	 * @param message the message to log
+	 */
+	private void log(String message) {
+		System.out.println("message);
+		if (logWriter != null) {
+			logWriter.println(message);
+		}
 	}
 
 	/**
@@ -120,11 +154,16 @@ public class NodeS {
 			long endTime = System.currentTimeMillis();
 			printStatistics(endTime - startTime);
 
+			// Close log file
+			if (logWriter != null) {
+				logWriter.close();
+			}
+
 		} catch (InterruptedException ex) {
-			System.err.println("Node " + nodeName + " interrupted");
+			log("Node " + nodeName + " interrupted");
 			Thread.currentThread().interrupt();
 		} catch (Exception ex) {
-			System.err.println("Node " + nodeName + " error: " + ex.getMessage());
+			log("Node " + nodeName + " error: " + ex.getMessage());
 			ex.printStackTrace();
 		}
 	}
@@ -137,7 +176,7 @@ public class NodeS {
 	private void loadRemoteNodes() {
 		File csvFile = new File("nodes.csv");
 		if (!csvFile.exists()) {
-			System.err.println("Warning: nodes.csv not found in current directory");
+			log("Warning: nodes.csv not found in current directory");
 			return;
 		}
 
@@ -151,7 +190,7 @@ public class NodeS {
 
 				String[] parts = line.split(",");
 				if (parts.length != 2) {
-					System.err.println("Warning: Invalid format at line " + lineNum + ": " + line);
+					log("Warning: Invalid format at line " + lineNum + ": " + line);
 					continue;
 				}
 
@@ -163,10 +202,10 @@ public class NodeS {
 					sentToNode.put(name, new AtomicInteger(0));
 				}
 			}
-			System.out.println("Loaded " + remoteNodes.size() + " remote nodes");
+			log("Loaded " + remoteNodes.size() + " remote nodes");
 
 		} catch (IOException ex) {
-			System.err.println("Error loading nodes.csv: " + ex.getMessage());
+			log("Error loading nodes.csv: " + ex.getMessage());
 		}
 	}
 
@@ -178,7 +217,7 @@ public class NodeS {
 		serverThread = new Thread(() -> {
 			try {
 				serverSocket = new ServerSocket(port);
-				System.out.println("Node " + nodeName + " listening on port " + port);
+				log("Node " + nodeName + " listening on port " + port);
 
 				while (running) {
 					try {
@@ -187,13 +226,13 @@ public class NodeS {
 						handlerThread.start();
 					} catch (SocketException ex) {
 						if (running) {
-							System.err.println("Server accept error: " + ex.getMessage());
+							log("Server accept error: " + ex.getMessage());
 						}
 					}
 				}
 			} catch (IOException ex) {
 				if (running) {
-					System.err.println("Failed to start server: " + ex.getMessage());
+					log("Failed to start server: " + ex.getMessage());
 				}
 			} finally {
 				closeServerSocket();
@@ -229,13 +268,13 @@ public class NodeS {
 			clock.update(event.getTimestamp());
 
 			// Log received event
-			System.out.println("RECEIVED: " + event);
+			log("RECEIVED: " + event);
 
 			receivedEvents.incrementAndGet();
 			totalEvents.incrementAndGet();
 
 		} catch (IOException | ClassNotFoundException ex) {
-			System.err.println("Error handling client: " + ex.getMessage());
+			log("Error handling client: " + ex.getMessage());
 		} finally {
 			closeSocket(socket);
 		}
@@ -261,7 +300,7 @@ public class NodeS {
 	 * Each worker thread runs independently and processes eventsPerThread events.
 	 */
 	private void startWorkerThreads() {
-		System.out.println("Starting " + numThreads + " worker threads with " + eventsPerThread + " events each");
+		log("Starting " + numThreads + " worker threads with " + eventsPerThread + " events each");
 
 		for (int i = 0; i < numThreads; i++) {
 			final int threadId = i;
@@ -336,7 +375,7 @@ public class NodeS {
 		sentEvents.incrementAndGet();
 		sentToNode.get(target.name).incrementAndGet();
 
-		System.out.println("Thread-" + threadId + " SENT: " + event);
+		log("Thread-" + threadId + " SENT: " + event);
 	}
 
 	/**
@@ -347,7 +386,7 @@ public class NodeS {
 	 */
 	private void processLocally(int threadId, long timestamp) {
 		Event event = new Event(nodeName, nodeName, timestamp);
-		System.out.println("Thread-" + threadId + " LOCAL: " + event);
+		log("Thread-" + threadId + " LOCAL: " + event);
 	}
 
 	/**
@@ -364,7 +403,7 @@ public class NodeS {
 					oos.writeObject(event);
 					oos.flush();
 				} catch (IOException ex) {
-					System.err.println("Failed to send event to " + target.name + ": " + ex.getMessage());
+					log("Failed to send event to " + target.name + ": " + ex.getMessage());
 				}
 		});
 		sender.setDaemon(true);
@@ -399,13 +438,13 @@ public class NodeS {
 	 * - Prints final statistics
 	 */
 	private void performGracefulShutdown() {
-		System.out.println("\nShutdown command received. Stopping...");
+		log("\nShutdown command received. Stopping...");
 		running = false;
 
 		// Wait for workers to finish
 		try {
 			workersLatch.await();
-			System.out.println("All worker threads completed.");
+			log("All worker threads completed.");
 		} catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
 		}
@@ -416,7 +455,7 @@ public class NodeS {
 		// Print final stats before exit
 		long endTime = System.currentTimeMillis();
 		printStatistics(endTime - startTime);
-		System.out.println("Node " + nodeName + " shutdown complete.");
+		log("Node " + nodeName + " shutdown complete.");
 		System.exit(0);
 	}
 
@@ -429,22 +468,22 @@ public class NodeS {
 	private void printStatistics(long executionTime) {
 		double throughput = totalEvents.get() / (executionTime / 1000.0);
 
-        System.out.println("\n=== Node " + nodeName + " Statistics ===");
-        System.out.println("Total events processed: " + totalEvents.get());
-        System.out.println("Messages sent: " + sentEvents.get());
-        System.out.println("Messages received: " + receivedEvents.get());
-        System.out.println("Execution time = " + executionTime + " ms");
-        System.out.println("Final Lamport time: " + clock.getTime());
-        System.out.println("Throughput: " + String.format("%.2f", throughput) + " events/sec");
+        log("\n=== Node " + nodeName + " Statistics ===");
+        log("Total events processed: " + totalEvents.get());
+        log("Messages sent: " + sentEvents.get());
+        log("Messages received: " + receivedEvents.get());
+        log("Execution time = " + executionTime + " ms");
+        log("Final Lamport time: " + clock.getTime());
+        log("Throughput: " + String.format("%.2f", throughput) + " events/sec");
 
-        System.out.println("\nEvents sent to remote nodes:");
+        log("\nEvents sent to remote nodes:");
         for (Map.Entry<String, AtomicInteger> entry : sentToNode.entrySet()) {
-            System.out.println("  " + entry.getKey() + ": " + entry.getValue().get());
+            log("  " + entry.getKey() + ": " + entry.getValue().get());
         }
 
-        System.out.println("\nTotal local events generated: " + totalEvents.get());
-        System.out.println("Total remote send percent configured: " + remoteSendPercent + "%");
-        System.out.println("Actual send percentage: " + 
+        log("\nTotal local events generated: " + totalEvents.get());
+        log("Total remote send percent configured: " + remoteSendPercent + "%");
+        log("Actual send percentage: " + 
             String.format("%.2f", (sentEvents.get() * 100.0 / totalEvents.get())) + "%");
 	}
 
