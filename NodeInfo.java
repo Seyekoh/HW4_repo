@@ -6,4 +6,9 @@ public class NodeInfo {
 		this.name = name;
 		this.ip = ip;
 	}
+
+	@Override
+	public String toString() {
+		return name + " (" + ip + ")";
+	}
 }
