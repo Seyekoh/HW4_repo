@@ -113,7 +113,7 @@ public class NodeS {
 	 * @param message the message to log
 	 */
 	private void log(String message) {
-		System.out.println("message);
+		System.out.println(message);
 		if (logWriter != null) {
 			logWriter.println(message);
 		}
