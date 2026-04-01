@@ -595,11 +595,6 @@ public class CS4225HW4_Team6_Suboptimal {
         }
 
         log("Total remote send percent configured: " + remoteSendPercent + "%");
-        log("Actual send percentage: " +
-                String.format("%.2f",
-                        localEventsGenerated.get() > 0
-                                ? (sentEvents.get() * 100.0 / localEventsGenerated.get())
-                                : 0.0) + "%");
     }
 
     /**
