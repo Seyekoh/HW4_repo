@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
-import java.util.SplittableRandom;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -25,14 +24,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 
-/**
- * Optimized version (O) of the distributed node.
- *
- * Command line: java NodeO <nodeName> <nodeIP> <numThreads> <eventsPerThread> <remoteSendPercent>
- *
- * @author James Bridges, Brailey Sharpe
- * @version Spring 2026
- */
 public class CS4225HW4_Team6_Optimized {
     private static final long BASE_RANDOM_SEED = 4225L;
     private static final int PORT = 4225;
@@ -40,14 +31,13 @@ public class CS4225HW4_Team6_Optimized {
     private static final String LOG_POISON = "__NODE_O_LOG_POISON__";
     private static final long LOGGER_FLUSH_BATCH = 256L;
     private static final int CONNECT_TIMEOUT_MS = 1500;
-    private static final int SEND_RETRIES = 3;
-    private static final long STARTUP_DELAY_MS = 500L;
+    private static final int SEND_RETRIES = 10;
+    private static final long STARTUP_DELAY_MS = 2000L;
 
     private final String nodeName;
     private final int numThreads;
     private final int eventsPerThread;
     private final int remoteSendPercent;
-    private final Random random;
 
     private final LamportClock clock;
     private final List<NodeInfo> remoteNodes;
@@ -57,6 +47,7 @@ public class CS4225HW4_Team6_Optimized {
     private final LongAdder sentEvents;
     private final LongAdder receivedEvents;
     private final LongAdder eventsLogged;
+    private final LongAdder sendAttempts;
     private final Map<String, LongAdder> sentToNode;
 
     private final CountDownLatch workersLatch;
@@ -81,7 +72,6 @@ public class CS4225HW4_Team6_Optimized {
         this.numThreads = numThreads;
         this.eventsPerThread = eventsPerThread;
         this.remoteSendPercent = remoteSendPercent;
-	this.random = new Random();
 
         int lamportIncrement = getLamportIncrement(nodeIP);
         this.clock = new LamportClock(lamportIncrement);
@@ -92,6 +82,7 @@ public class CS4225HW4_Team6_Optimized {
         this.sentEvents = new LongAdder();
         this.receivedEvents = new LongAdder();
         this.eventsLogged = new LongAdder();
+        this.sendAttempts = new LongAdder();
         this.sentToNode = new ConcurrentHashMap<>();
 
         this.workersLatch = new CountDownLatch(numThreads);
@@ -232,25 +223,15 @@ public class CS4225HW4_Team6_Optimized {
     private void loadRemoteNodes() {
         File csvFile = new File("nodes.csv");
         if (!csvFile.exists()) {
-            log("Warning: nodes.csv not found in current directory");
+            log("Warning: nodes.csv not found");
             return;
         }
 
         try (BufferedReader reader = new BufferedReader(new FileReader(csvFile))) {
             String line;
-            int lineNum = 0;
-
             while ((line = reader.readLine()) != null) {
-                lineNum++;
-                line = line.trim();
-
-                if (line.isEmpty()) {
-                    continue;
-                }
-
                 String[] parts = line.split(",");
                 if (parts.length != 2) {
-                    log("Warning: Invalid format at line " + lineNum + ": " + line);
                     continue;
                 }
 
@@ -262,8 +243,6 @@ public class CS4225HW4_Team6_Optimized {
                     sentToNode.put(name, new LongAdder());
                 }
             }
-
-            log("Loaded " + remoteNodes.size() + " remote nodes");
         } catch (IOException ex) {
             log("Error loading nodes.csv: " + ex.getMessage());
         }
@@ -273,51 +252,30 @@ public class CS4225HW4_Team6_Optimized {
         serverThread = new Thread(() -> {
             try {
                 serverSocket = new ServerSocket(PORT, 5000);
-                log("Node " + nodeName + " listening on port " + PORT);
 
                 while (running.get()) {
                     try {
                         Socket clientSocket = serverSocket.accept();
                         if (clientSocket != null) {
-                            clientSocket.setTcpNoDelay(true);
                             handlerPool.submit(() -> handleClient(clientSocket));
                         }
                     } catch (SocketException ex) {
                         if (running.get()) {
-                            log("Server accept error: " + ex.getMessage());
+                            log("Server error: " + ex.getMessage());
                         }
                     }
                 }
             } catch (IOException ex) {
                 if (running.get()) {
-                    log("Failed to start server: " + ex.getMessage());
+                    log("Server start error: " + ex.getMessage());
                 }
-            } finally {
-                closeServerSocket();
             }
-        }, "NodeO-Server");
+        });
 
         serverThread.start();
     }
 
-    private void closeServerSocket() {
-        try {
-            if (serverSocket != null && !serverSocket.isClosed()) {
-                serverSocket.close();
-            }
-        } catch (IOException ex) {
-            log("Server socket close error: " + ex.getMessage());
-        }
-    }
-
     private void handleClient(Socket socket) {
-        if (socket == null) {
-            if (running.get()) {
-                logEvent("Error handling client: socket was null");
-            }
-            return;
-        }
-
         try (Socket client = socket;
              ObjectInputStream ois = new ObjectInputStream(client.getInputStream())) {
 
@@ -328,20 +286,14 @@ public class CS4225HW4_Team6_Optimized {
             totalProcessedEvents.increment();
 
             logEvent("RECEIVED: " + event);
-        } catch (IOException ex) {
+        } catch (Exception ex) {
             if (running.get()) {
-                logEvent("Error handling client from "
-                        + socket.getRemoteSocketAddress() + ": " + ex.getMessage());
+                logEvent("Receive error: " + ex.getMessage());
             }
-        } catch (ClassNotFoundException ex) {
-            logEvent("Invalid event received from "
-                    + socket.getRemoteSocketAddress() + ": " + ex.getMessage());
         }
     }
 
     private void startWorkerTasks() {
-        log("Starting " + numThreads + " worker tasks with " + eventsPerThread + " events each");
-
         for (int i = 0; i < numThreads; i++) {
             final int workerId = i;
             workerPool.submit(() -> processWorkerEvents(workerId));
@@ -349,14 +301,14 @@ public class CS4225HW4_Team6_Optimized {
     }
 
     private void processWorkerEvents(int workerId) {
-        SplittableRandom workerRandom = new SplittableRandom(
-                BASE_RANDOM_SEED + 0x9E3779B97F4A7C15L * (workerId + 1L));
+        Random workerRandom = new Random(BASE_RANDOM_SEED + workerId);
 
         try {
-            for (int eventNum = 0; eventNum < eventsPerThread && running.get(); eventNum++) {
+            for (int i = 0; i < eventsPerThread && running.get(); i++) {
                 long timestamp = clock.tick();
 
-                if (!remoteNodes.isEmpty() && shouldSendToRemote()) {
+                if (!remoteNodes.isEmpty() && shouldSendToRemote(workerRandom)) {
+                    sendAttempts.increment();
                     sendToRandomRemote(workerId, timestamp, workerRandom);
                 } else {
                     processLocally(workerId, timestamp);
@@ -370,11 +322,11 @@ public class CS4225HW4_Team6_Optimized {
         }
     }
 
-    private boolean shouldSendToRemote() {
+    private boolean shouldSendToRemote(Random random) {
         return random.nextInt(100) < remoteSendPercent;
     }
 
-    private void sendToRandomRemote(int workerId, long timestamp, SplittableRandom random) {
+    private void sendToRandomRemote(int workerId, long timestamp, Random random) {
         NodeInfo target = remoteNodes.get(random.nextInt(remoteNodes.size()));
         Event event = new Event(nodeName, target.name, timestamp);
 
@@ -390,7 +342,6 @@ public class CS4225HW4_Team6_Optimized {
     private void sendEvent(int workerId, NodeInfo target, Event event) {
         for (int attempt = 1; attempt <= SEND_RETRIES && running.get(); attempt++) {
             try (Socket socket = new Socket()) {
-                socket.setTcpNoDelay(true);
                 socket.connect(new InetSocketAddress(target.ip, PORT), CONNECT_TIMEOUT_MS);
 
                 try (ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
@@ -404,15 +355,7 @@ public class CS4225HW4_Team6_Optimized {
                 return;
             } catch (IOException ex) {
                 if (attempt == SEND_RETRIES) {
-                    logEvent("Worker-" + workerId + " FAILED TO SEND to "
-                            + target.name + ": " + ex.getMessage() + " | Event: " + event);
-                } else {
-                    try {
-                        Thread.sleep(50L * attempt);
-                    } catch (InterruptedException interruptedEx) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
+                    logEvent("FAILED SEND: " + event);
                 }
             }
         }
@@ -422,20 +365,13 @@ public class CS4225HW4_Team6_Optimized {
         shutdownListenerThread = new Thread(() -> {
             try (Scanner scanner = new Scanner(System.in)) {
                 while (running.get()) {
-                    String input = scanner.nextLine().trim();
-                    if (input.equalsIgnoreCase("q")) {
+                    if (scanner.nextLine().trim().equalsIgnoreCase("q")) {
                         finishRun(true);
                         break;
                     }
                 }
-            } catch (Exception ex) {
-                if (running.get()) {
-                    log("Shutdown listener error: " + ex.getMessage());
-                }
             }
-        }, "NodeO-ShutdownListener");
-
-        shutdownListenerThread.setDaemon(true);
+        });
         shutdownListenerThread.start();
     }
 
@@ -455,12 +391,6 @@ public class CS4225HW4_Team6_Optimized {
             sendPool.shutdown();
             sendPool.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
 
-            closeServerSocket();
-
-            if (serverThread != null) {
-                serverThread.join();
-            }
-
             handlerPool.shutdown();
             handlerPool.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
 
@@ -469,103 +399,31 @@ public class CS4225HW4_Team6_Optimized {
 
             logQueue.offer(LOG_POISON);
 
-            if (loggerThread != null) {
-                loggerThread.join();
-            }
+            loggerThread.join();
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-        } finally {
-            if (shutdownRequested) {
-                System.exit(0);
-            }
         }
     }
 
     private void printStatistics(long executionTime) {
-        long totalProcessed = totalProcessedEvents.sum();
         long totalLocal = localEventsGenerated.sum();
         long totalSent = sentEvents.sum();
-        long totalReceived = receivedEvents.sum();
-        long totalLogged = eventsLogged.sum();
+        long totalAttempts = sendAttempts.sum();
 
-        double throughput = executionTime > 0
-                ? totalProcessed / (executionTime / 1000.0)
-                : 0.0;
-
-        log("=== Node " + nodeName + " Statistics ===");
-        log("Total local events generated: " + totalLocal);
-        log("Total events processed: " + totalProcessed);
-        log("Messages sent: " + totalSent);
-        log("Messages received: " + totalReceived);
-        log("Total events logged: " + totalLogged);
-        log("Execution time = " + executionTime + " ms");
-        log("Final Lamport time: " + clock.getTime());
-        log("Throughput: " + String.format("%.2f", throughput) + " events/sec");
-        log("Events sent to remote nodes:");
-
-        for (Map.Entry<String, LongAdder> entry : sentToNode.entrySet()) {
-            log("  " + entry.getKey() + ": " + entry.getValue().sum());
-        }
-
-        log("Total remote send percent configured: " + remoteSendPercent + "%");
-        log("Actual send percentage: " + String.format("%.2f",
-                totalLocal > 0 ? (totalSent * 100.0 / totalLocal) : 0.0) + "%");
+        log("Configured: " + remoteSendPercent + "%");
+        log("Attempted: " + (totalAttempts * 100.0 / totalLocal) + "%");
+        log("Successful: " + (totalSent * 100.0 / totalLocal) + "%");
     }
 
     public static void main(String[] args) {
-        if (args.length != 5) {
-            printUsage();
-            System.exit(1);
-        }
+        String nodeName = args[0];
+        String nodeIP = args[1];
+        int numThreads = Integer.parseInt(args[2]);
+        int eventsPerThread = Integer.parseInt(args[3]);
+        int remoteSendPercent = Integer.parseInt(args[4]);
 
-        try {
-            String nodeName = args[0];
-            String nodeIP = args[1];
-            int numThreads = Integer.parseInt(args[2]);
-            int eventsPerThread = Integer.parseInt(args[3]);
-            int remoteSendPercent = Integer.parseInt(args[4]);
-
-            if (!validateParameters(numThreads, eventsPerThread, remoteSendPercent)) {
-                System.exit(1);
-            }
-
-            CS4225HW4_Team6_Optimized node = new CS4225HW4_Team6_Optimized(nodeName, nodeIP, numThreads, eventsPerThread, remoteSendPercent);
-            node.start();
-        } catch (NumberFormatException ex) {
-            System.err.println("Error: Invalid number format in arguments");
-            printUsage();
-            System.exit(1);
-        }
-    }
-
-    private static void printUsage() {
-        System.err.println("Usage: java NodeO <nodeName> <nodeIP> <numThreads> <eventsPerThread> <remoteSendPercent>");
-        System.err.println("Example: java NodeO AnaStanescu 160.10.23.18 200 500 25");
-        System.err.println("  nodeName: name of this node (must match entry in nodes.csv)");
-        System.err.println("  nodeIP: IP address of this node");
-        System.err.println("  numThreads: number of worker tasks (> 0)");
-        System.err.println("  eventsPerThread: number of events per worker task (> 0)");
-        System.err.println("  remoteSendPercent: percentage (0-100) of events to send remotely");
-    }
-
-    private static boolean validateParameters(int numThreads, int eventsPerThread, int remoteSendPercent) {
-        boolean valid = true;
-
-        if (numThreads <= 0) {
-            System.err.println("Error: numThreads must be greater than 0");
-            valid = false;
-        }
-
-        if (eventsPerThread <= 0) {
-            System.err.println("Error: eventsPerThread must be greater than 0");
-            valid = false;
-        }
-
-        if (remoteSendPercent < 0 || remoteSendPercent > 100) {
-            System.err.println("Error: remoteSendPercent must be between 0 and 100");
-            valid = false;
-        }
-
-        return valid;
+        new CS4225HW4_Team6_Optimized(
+                nodeName, nodeIP, numThreads, eventsPerThread, remoteSendPercent
+        ).start();
     }
 }
