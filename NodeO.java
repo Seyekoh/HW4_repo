@@ -322,6 +322,16 @@ public class NodeO {
 	}
     }
 
+    private void closeSocket(Socket socket) {
+	try {
+	    if (socket != null && !socket.isClosed()) {
+		socket.close();
+	    }
+	} catch (IOException ex) {
+	    // Ignore close errors
+	}
+    }
+
     private void waitForRemoteNodes() {
         if (remoteNodes.isEmpty()) {
             return;
