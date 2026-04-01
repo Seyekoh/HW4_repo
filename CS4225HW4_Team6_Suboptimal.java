@@ -14,19 +14,16 @@ import java.util.concurrent.atomic.*;
  * @version Spring 2026
  */
 public class CS4225HW4_Team6_Suboptimal {
-    // Command-line parameters
     private final String nodeName;
     private final int numThreads;
     private final int eventsPerThread;
     private final int remoteSendPercent;
 
-    // Core components
     private final LamportClock clock;
     private final List<NodeInfo> remoteNodes;
     private final Random random;
     private final int port;
 
-    // Metrics
     private final AtomicLong localEventsGenerated;
     private final AtomicLong totalProcessedEvents;
     private final AtomicInteger sentEvents;
@@ -34,7 +31,6 @@ public class CS4225HW4_Team6_Suboptimal {
     private final AtomicInteger eventsLogged;
     private final Map<String, AtomicInteger> sentToNode;
 
-    // Thread management
     private final List<Thread> workerThreads;
     private final List<Thread> senderThreads;
     private final List<Thread> handlerThreads;
@@ -46,12 +42,10 @@ public class CS4225HW4_Team6_Suboptimal {
     private volatile boolean running;
     private volatile long startTime;
 
-    // Server components
     private ServerSocket serverSocket;
     private Thread serverThread;
     private Thread shutdownListenerThread;
 
-    // Logging
     private PrintWriter logWriter;
 
     /**
@@ -70,10 +64,8 @@ public class CS4225HW4_Team6_Suboptimal {
         this.eventsPerThread = eventsPerThread;
         this.remoteSendPercent = remoteSendPercent;
 
-        // Initialize logging
         initLogging();
 
-        // Initialize core components
         this.port = 4225;
         this.random = new Random(4225);
         int lamportIncrement = getLamportIncrement(nodeIP);
@@ -81,7 +73,6 @@ public class CS4225HW4_Team6_Suboptimal {
         this.remoteNodes = new ArrayList<>();
         this.workersLatch = new CountDownLatch(numThreads);
 
-        // Initialize metrics
         this.localEventsGenerated = new AtomicLong(0);
         this.totalProcessedEvents = new AtomicLong(0);
         this.sentEvents = new AtomicInteger(0);
@@ -89,7 +80,6 @@ public class CS4225HW4_Team6_Suboptimal {
         this.eventsLogged = new AtomicInteger(0);
         this.sentToNode = new ConcurrentHashMap<>();
 
-        // Initialize thread management
         this.workerThreads = Collections.synchronizedList(new ArrayList<>());
         this.senderThreads = Collections.synchronizedList(new ArrayList<>());
         this.handlerThreads = Collections.synchronizedList(new ArrayList<>());
@@ -99,7 +89,6 @@ public class CS4225HW4_Team6_Suboptimal {
         this.shutdownInitiated = new AtomicBoolean(false);
         this.running = true;
 
-        // Load remote nodes from CSV
         loadRemoteNodes();
 
         log("Node " + nodeName + " initialized on IP " + nodeIP);
@@ -119,7 +108,6 @@ public class CS4225HW4_Team6_Suboptimal {
         } catch (IOException ex) {
             System.err.println("Failed to create log file: " + ex.getMessage());
 
-            // Fallback to console only
             logWriter = null;
         }
     }
@@ -157,7 +145,7 @@ public class CS4225HW4_Team6_Suboptimal {
             }
         }
 
-        return 1; // default to 1 if no non-zero digit found
+        return 1;
     }
 
     /**
@@ -642,7 +630,7 @@ public class CS4225HW4_Team6_Suboptimal {
                 System.exit(1);
             }
 
-            NodeS node = new NodeS(nodeName, nodeIP, numThreads, eventsPerThread, remoteSendPercent);
+            CS4225HW4_Team6_Suboptimal node = new CS4225HW4_Team6_Suboptimal(nodeName, nodeIP, numThreads, eventsPerThread, remoteSendPercent);
             node.start();
 
         } catch (NumberFormatException ex) {
