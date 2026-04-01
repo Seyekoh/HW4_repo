@@ -356,7 +356,7 @@ public class CS4225HW4_Team6_Optimized {
             for (int eventNum = 0; eventNum < eventsPerThread && running.get(); eventNum++) {
                 long timestamp = clock.tick();
 
-                if (!remoteNodes.isEmpty() && shouldSendToRemote()) {
+                if (!remoteNodes.isEmpty() && shouldSendToRemote(workerRandom)) {
                     sendToRandomRemote(workerId, timestamp, workerRandom);
                 } else {
                     processLocally(workerId, timestamp);
@@ -370,7 +370,7 @@ public class CS4225HW4_Team6_Optimized {
         }
     }
 
-    private boolean shouldSendToRemote() {
+    private boolean shouldSendToRemote(SplittableRandom random) {
         return random.nextInt(100) < remoteSendPercent;
     }
 
