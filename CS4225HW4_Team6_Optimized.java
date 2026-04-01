@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.LongAdder;
  * @author James Bridges, Brailey Sharpe
  * @version Spring 2026
  */
-public class NodeO {
+public class CS4225HW4_Team6_Optimized {
     private static final long BASE_RANDOM_SEED = 4225L;
     private static final int PORT = 4225;
     private static final String LOG_FILE_NAME = "events.log";
@@ -74,7 +74,7 @@ public class NodeO {
     private volatile Thread loggerThread;
     private volatile BufferedWriter logWriter;
 
-    public NodeO(String nodeName, String nodeIP, int numThreads, int eventsPerThread, int remoteSendPercent) {
+    public CS4225HW4_Team6_Optimized(String nodeName, String nodeIP, int numThreads, int eventsPerThread, int remoteSendPercent) {
         this.nodeName = nodeName;
         this.numThreads = numThreads;
         this.eventsPerThread = eventsPerThread;
