@@ -13,6 +13,7 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.SplittableRandom;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,6 +47,7 @@ public class CS4225HW4_Team6_Optimized {
     private final int numThreads;
     private final int eventsPerThread;
     private final int remoteSendPercent;
+    private final Random random;
 
     private final LamportClock clock;
     private final List<NodeInfo> remoteNodes;
@@ -79,6 +81,7 @@ public class CS4225HW4_Team6_Optimized {
         this.numThreads = numThreads;
         this.eventsPerThread = eventsPerThread;
         this.remoteSendPercent = remoteSendPercent;
+	this.random = new Random();
 
         int lamportIncrement = getLamportIncrement(nodeIP);
         this.clock = new LamportClock(lamportIncrement);
@@ -353,7 +356,7 @@ public class CS4225HW4_Team6_Optimized {
             for (int eventNum = 0; eventNum < eventsPerThread && running.get(); eventNum++) {
                 long timestamp = clock.tick();
 
-                if (!remoteNodes.isEmpty() && shouldSendToRemote(workerRandom)) {
+                if (!remoteNodes.isEmpty() && shouldSendToRemote()) {
                     sendToRandomRemote(workerId, timestamp, workerRandom);
                 } else {
                     processLocally(workerId, timestamp);
@@ -367,7 +370,7 @@ public class CS4225HW4_Team6_Optimized {
         }
     }
 
-    private boolean shouldSendToRemote(SplittableRandom random) {
+    private boolean shouldSendToRemote() {
         return random.nextInt(100) < remoteSendPercent;
     }
 
