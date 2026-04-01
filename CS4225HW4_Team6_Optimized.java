@@ -13,6 +13,7 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.SplittableRandom;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,7 +33,7 @@ import java.util.concurrent.atomic.LongAdder;
  * @author James Bridges, Brailey Sharpe
  * @version Spring 2026
  */
-public class NodeO {
+public class CS4225HW4_Team6_Optimized {
     private static final long BASE_RANDOM_SEED = 4225L;
     private static final int PORT = 4225;
     private static final String LOG_FILE_NAME = "events.log";
@@ -40,11 +41,13 @@ public class NodeO {
     private static final long LOGGER_FLUSH_BATCH = 256L;
     private static final int CONNECT_TIMEOUT_MS = 1500;
     private static final int SEND_RETRIES = 3;
+    private static final long STARTUP_DELAY_MS = 500L;
 
     private final String nodeName;
     private final int numThreads;
     private final int eventsPerThread;
     private final int remoteSendPercent;
+    private final Random random;
 
     private final LamportClock clock;
     private final List<NodeInfo> remoteNodes;
@@ -73,11 +76,12 @@ public class NodeO {
     private volatile Thread loggerThread;
     private volatile BufferedWriter logWriter;
 
-    public NodeO(String nodeName, String nodeIP, int numThreads, int eventsPerThread, int remoteSendPercent) {
+    public CS4225HW4_Team6_Optimized(String nodeName, String nodeIP, int numThreads, int eventsPerThread, int remoteSendPercent) {
         this.nodeName = nodeName;
         this.numThreads = numThreads;
         this.eventsPerThread = eventsPerThread;
         this.remoteSendPercent = remoteSendPercent;
+	this.random = new Random();
 
         int lamportIncrement = getLamportIncrement(nodeIP);
         this.clock = new LamportClock(lamportIncrement);
@@ -204,7 +208,8 @@ public class NodeO {
         try {
             startServer();
             startShutdownListener();
-            waitForRemoteNodes();
+
+            Thread.sleep(STARTUP_DELAY_MS);
 
             startTime = System.currentTimeMillis();
             startWorkerTasks();
@@ -267,14 +272,16 @@ public class NodeO {
     private void startServer() {
         serverThread = new Thread(() -> {
             try {
-                serverSocket = new ServerSocket(PORT);
+                serverSocket = new ServerSocket(PORT, 5000);
                 log("Node " + nodeName + " listening on port " + PORT);
 
                 while (running.get()) {
                     try {
                         Socket clientSocket = serverSocket.accept();
-                        clientSocket.setTcpNoDelay(true);
-                        handlerPool.submit(() -> handleClient(clientSocket));
+                        if (clientSocket != null) {
+                            clientSocket.setTcpNoDelay(true);
+                            handlerPool.submit(() -> handleClient(clientSocket));
+                        }
                     } catch (SocketException ex) {
                         if (running.get()) {
                             log("Server accept error: " + ex.getMessage());
@@ -304,6 +311,13 @@ public class NodeO {
     }
 
     private void handleClient(Socket socket) {
+        if (socket == null) {
+            if (running.get()) {
+                logEvent("Error handling client: socket was null");
+            }
+            return;
+        }
+
         try (Socket client = socket;
              ObjectInputStream ois = new ObjectInputStream(client.getInputStream())) {
 
@@ -314,49 +328,15 @@ public class NodeO {
             totalProcessedEvents.increment();
 
             logEvent("RECEIVED: " + event);
-        } catch (IOException | ClassNotFoundException ex) {
-            logEvent("Error handling client: " + ex.getMessage());
-        }
-    }
-
-    private void waitForRemoteNodes() {
-        if (remoteNodes.isEmpty()) {
-            return;
-        }
-
-        boolean[] ready = new boolean[remoteNodes.size()];
-        int readyCount = 0;
-
-        log("Waiting for remote nodes to become reachable...");
-
-        while (readyCount < remoteNodes.size() && running.get()) {
-            for (int i = 0; i < remoteNodes.size(); i++) {
-                if (ready[i]) {
-                    continue;
-                }
-
-                NodeInfo node = remoteNodes.get(i);
-
-                try (Socket socket = new Socket()) {
-                    socket.connect(new InetSocketAddress(node.ip, PORT), 500);
-                    ready[i] = true;
-                    readyCount++;
-                    log("Remote node reachable: " + node.name);
-                } catch (IOException ex) {
-                }
+        } catch (IOException ex) {
+            if (running.get()) {
+                logEvent("Error handling client from "
+                        + socket.getRemoteSocketAddress() + ": " + ex.getMessage());
             }
-
-            if (readyCount < remoteNodes.size()) {
-                try {
-                    Thread.sleep(250);
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-            }
+        } catch (ClassNotFoundException ex) {
+            logEvent("Invalid event received from "
+                    + socket.getRemoteSocketAddress() + ": " + ex.getMessage());
         }
-
-        log("All remote nodes are reachable. Starting workers.");
     }
 
     private void startWorkerTasks() {
@@ -369,7 +349,8 @@ public class NodeO {
     }
 
     private void processWorkerEvents(int workerId) {
-        SplittableRandom workerRandom = new SplittableRandom(BASE_RANDOM_SEED + 0x9E3779B97F4A7C15L * (workerId + 1L));
+        SplittableRandom workerRandom = new SplittableRandom(
+                BASE_RANDOM_SEED);
 
         try {
             for (int eventNum = 0; eventNum < eventsPerThread && running.get(); eventNum++) {
@@ -397,12 +378,8 @@ public class NodeO {
         NodeInfo target = remoteNodes.get(random.nextInt(remoteNodes.size()));
         Event event = new Event(nodeName, target.name, timestamp);
 
-        sentEvents.increment();
-        sentToNode.get(target.name).increment();
-
-        logEvent("Worker-" + workerId + " SENT: " + event);
-
-        sendPool.submit(() -> sendEvent(target, event));
+        logEvent("Worker-" + workerId + " QUEUED FOR SEND: " + event);
+        sendPool.submit(() -> sendEvent(workerId, target, event));
     }
 
     private void processLocally(int workerId, long timestamp) {
@@ -410,8 +387,8 @@ public class NodeO {
         logEvent("Worker-" + workerId + " LOCAL: " + event);
     }
 
-    private void sendEvent(NodeInfo target, Event event) {
-        for (int attempt = 1; attempt <= SEND_RETRIES; attempt++) {
+    private void sendEvent(int workerId, NodeInfo target, Event event) {
+        for (int attempt = 1; attempt <= SEND_RETRIES && running.get(); attempt++) {
             try (Socket socket = new Socket()) {
                 socket.setTcpNoDelay(true);
                 socket.connect(new InetSocketAddress(target.ip, PORT), CONNECT_TIMEOUT_MS);
@@ -421,10 +398,14 @@ public class NodeO {
                     oos.flush();
                 }
 
+                sentEvents.increment();
+                sentToNode.get(target.name).increment();
+                logEvent("Worker-" + workerId + " SENT: " + event);
                 return;
             } catch (IOException ex) {
                 if (attempt == SEND_RETRIES) {
-                    logEvent("Failed to send event to " + target.name + ": " + ex.getMessage());
+                    logEvent("Worker-" + workerId + " FAILED TO SEND to "
+                            + target.name + ": " + ex.getMessage() + " | Event: " + event);
                 } else {
                     try {
                         Thread.sleep(50L * attempt);
@@ -527,8 +508,6 @@ public class NodeO {
         }
 
         log("Total remote send percent configured: " + remoteSendPercent + "%");
-        log("Actual send percentage: " + String.format("%.2f",
-                totalLocal > 0 ? (totalSent * 100.0 / totalLocal) : 0.0) + "%");
     }
 
     public static void main(String[] args) {
@@ -548,7 +527,7 @@ public class NodeO {
                 System.exit(1);
             }
 
-            NodeO node = new NodeO(nodeName, nodeIP, numThreads, eventsPerThread, remoteSendPercent);
+            CS4225HW4_Team6_Optimized node = new CS4225HW4_Team6_Optimized(nodeName, nodeIP, numThreads, eventsPerThread, remoteSendPercent);
             node.start();
         } catch (NumberFormatException ex) {
             System.err.println("Error: Invalid number format in arguments");

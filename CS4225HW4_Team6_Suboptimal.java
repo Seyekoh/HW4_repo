@@ -13,20 +13,17 @@ import java.util.concurrent.atomic.*;
  * @author James Bridges, Brailey Sharpe
  * @version Spring 2026
  */
-public class NodeS {
-    // Command-line parameters
+public class CS4225HW4_Team6_Suboptimal {
     private final String nodeName;
     private final int numThreads;
     private final int eventsPerThread;
     private final int remoteSendPercent;
 
-    // Core components
     private final LamportClock clock;
     private final List<NodeInfo> remoteNodes;
     private final Random random;
     private final int port;
 
-    // Metrics
     private final AtomicLong localEventsGenerated;
     private final AtomicLong totalProcessedEvents;
     private final AtomicInteger sentEvents;
@@ -34,7 +31,6 @@ public class NodeS {
     private final AtomicInteger eventsLogged;
     private final Map<String, AtomicInteger> sentToNode;
 
-    // Thread management
     private final List<Thread> workerThreads;
     private final List<Thread> senderThreads;
     private final List<Thread> handlerThreads;
@@ -46,12 +42,10 @@ public class NodeS {
     private volatile boolean running;
     private volatile long startTime;
 
-    // Server components
     private ServerSocket serverSocket;
     private Thread serverThread;
     private Thread shutdownListenerThread;
 
-    // Logging
     private PrintWriter logWriter;
 
     /**
@@ -64,16 +58,14 @@ public class NodeS {
      * @param eventsPerThread   number of events each worker thread will process
      * @param remoteSendPercent percentave chanve to send event to remote node
      */
-    public NodeS(String nodeName, String nodeIP, int numThreads, int eventsPerThread, int remoteSendPercent) {
+    public CS4225HW4_Team6_Suboptimal(String nodeName, String nodeIP, int numThreads, int eventsPerThread, int remoteSendPercent) {
         this.nodeName = nodeName;
         this.numThreads = numThreads;
         this.eventsPerThread = eventsPerThread;
         this.remoteSendPercent = remoteSendPercent;
 
-        // Initialize logging
         initLogging();
 
-        // Initialize core components
         this.port = 4225;
         this.random = new Random(4225);
         int lamportIncrement = getLamportIncrement(nodeIP);
@@ -81,7 +73,6 @@ public class NodeS {
         this.remoteNodes = new ArrayList<>();
         this.workersLatch = new CountDownLatch(numThreads);
 
-        // Initialize metrics
         this.localEventsGenerated = new AtomicLong(0);
         this.totalProcessedEvents = new AtomicLong(0);
         this.sentEvents = new AtomicInteger(0);
@@ -89,7 +80,6 @@ public class NodeS {
         this.eventsLogged = new AtomicInteger(0);
         this.sentToNode = new ConcurrentHashMap<>();
 
-        // Initialize thread management
         this.workerThreads = Collections.synchronizedList(new ArrayList<>());
         this.senderThreads = Collections.synchronizedList(new ArrayList<>());
         this.handlerThreads = Collections.synchronizedList(new ArrayList<>());
@@ -99,7 +89,6 @@ public class NodeS {
         this.shutdownInitiated = new AtomicBoolean(false);
         this.running = true;
 
-        // Load remote nodes from CSV
         loadRemoteNodes();
 
         log("Node " + nodeName + " initialized on IP " + nodeIP);
@@ -119,7 +108,6 @@ public class NodeS {
         } catch (IOException ex) {
             System.err.println("Failed to create log file: " + ex.getMessage());
 
-            // Fallback to console only
             logWriter = null;
         }
     }
@@ -157,7 +145,7 @@ public class NodeS {
             }
         }
 
-        return 1; // default to 1 if no non-zero digit found
+        return 1;
     }
 
     /**
@@ -175,6 +163,8 @@ public class NodeS {
             startWorkerThreads();
 
             workersLatch.await();
+
+	    Thread.sleep(3000);
 
             joinAllThreads(senderThreads);
             waitForCommunicationToFinish();
@@ -260,7 +250,7 @@ public class NodeS {
     private void startServer() {
         serverThread = new Thread(() -> {
             try {
-                serverSocket = new ServerSocket(port);
+                serverSocket = new ServerSocket(port, 5000);
                 log("Node " + nodeName + " listening on port " + port);
 
                 while (running) {
@@ -458,7 +448,6 @@ public class NodeS {
         NodeInfo target = remoteNodes.get(random.nextInt(remoteNodes.size()));
         Event event = new Event(nodeName, target.name, timestamp);
 
-        sentEvents.incrementAndGet();
         sentToNode.get(target.name).incrementAndGet();
         log("Thread-" + threadId + " SENT: " + event);
         eventsLogged.incrementAndGet();
@@ -487,21 +476,32 @@ public class NodeS {
      */
     private void sendEvent(NodeInfo target, Event event) {
         Thread sender = new Thread(() -> {
-            senderStarted();
-            try (Socket socket = new Socket(target.ip, port);
-                 ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
-                oos.writeObject(event);
-                oos.flush();
-            } catch (IOException ex) {
-                log("Failed to send event to " + target.name + ": " + ex.getMessage());
-                eventsLogged.incrementAndGet();
-            } finally {
-                senderFinished();
-            }
-        });
-
-        senderThreads.add(sender);
-        sender.start();
+	    int attempts = 0;
+	    int maxAttempts = 5;
+	    boolean success = false;
+	    
+	    while (!success && attempts < maxAttempts) {
+	        try (Socket socket = new Socket(target.ip, port);
+		     ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
+		    oos.writeObject(event);
+		    oos.flush();
+		    success = true;
+		    sentEvents.incrementAndGet();
+	        } catch (IOException ex) {
+		    attempts++;
+		    if (attempts < maxAttempts) {
+			try {
+			    Thread.sleep(50);
+			} catch (InterruptedException ie) {
+			    Thread.currentThread().interrupt();
+			}
+		    } else {
+			log("Failed to send to " + target.name + " after " + maxAttempts + " tries.");
+		    }
+		}
+	    }	
+	});
+	sender.start();
     }
 
     /**
@@ -595,11 +595,6 @@ public class NodeS {
         }
 
         log("Total remote send percent configured: " + remoteSendPercent + "%");
-        log("Actual send percentage: " +
-                String.format("%.2f",
-                        localEventsGenerated.get() > 0
-                                ? (sentEvents.get() * 100.0 / localEventsGenerated.get())
-                                : 0.0) + "%");
     }
 
     /**
@@ -630,7 +625,7 @@ public class NodeS {
                 System.exit(1);
             }
 
-            NodeS node = new NodeS(nodeName, nodeIP, numThreads, eventsPerThread, remoteSendPercent);
+            CS4225HW4_Team6_Suboptimal node = new CS4225HW4_Team6_Suboptimal(nodeName, nodeIP, numThreads, eventsPerThread, remoteSendPercent);
             node.start();
 
         } catch (NumberFormatException ex) {
