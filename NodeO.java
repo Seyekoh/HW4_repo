@@ -40,6 +40,7 @@ public class NodeO {
     private static final long LOGGER_FLUSH_BATCH = 256L;
     private static final int CONNECT_TIMEOUT_MS = 1500;
     private static final int SEND_RETRIES = 3;
+    private static final long STARTUP_DELAY_MS = 500L;
 
     private final String nodeName;
     private final int numThreads;
@@ -204,7 +205,8 @@ public class NodeO {
         try {
             startServer();
             startShutdownListener();
-            waitForRemoteNodes();
+
+            Thread.sleep(STARTUP_DELAY_MS);
 
             startTime = System.currentTimeMillis();
             startWorkerTasks();
@@ -273,8 +275,10 @@ public class NodeO {
                 while (running.get()) {
                     try {
                         Socket clientSocket = serverSocket.accept();
-                        clientSocket.setTcpNoDelay(true);
-                        handlerPool.submit(() -> handleClient(clientSocket));
+                        if (clientSocket != null) {
+                            clientSocket.setTcpNoDelay(true);
+                            handlerPool.submit(() -> handleClient(clientSocket));
+                        }
                     } catch (SocketException ex) {
                         if (running.get()) {
                             log("Server accept error: " + ex.getMessage());
@@ -304,7 +308,15 @@ public class NodeO {
     }
 
     private void handleClient(Socket socket) {
-        try (ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
+        if (socket == null) {
+            if (running.get()) {
+                logEvent("Error handling client: socket was null");
+            }
+            return;
+        }
+
+        try (Socket client = socket;
+             ObjectInputStream ois = new ObjectInputStream(client.getInputStream())) {
 
             Event event = (Event) ois.readObject();
             clock.update(event.getTimestamp());
@@ -314,62 +326,14 @@ public class NodeO {
 
             logEvent("RECEIVED: " + event);
         } catch (IOException ex) {
-            logEvent("Error handling client: " + ex.getMessage());
+            if (running.get()) {
+                logEvent("Error handling client from "
+                        + socket.getRemoteSocketAddress() + ": " + ex.getMessage());
+            }
         } catch (ClassNotFoundException ex) {
-	    logEvent("Error finding class: " + ex.getMessage());
-	} finally {
-	    closeSocket(socket);
-	}
-    }
-
-    private void closeSocket(Socket socket) {
-	try {
-	    if (socket != null && !socket.isClosed()) {
-		socket.close();
-	    }
-	} catch (IOException ex) {
-	    // Ignore close errors
-	}
-    }
-
-    private void waitForRemoteNodes() {
-        if (remoteNodes.isEmpty()) {
-            return;
+            logEvent("Invalid event received from "
+                    + socket.getRemoteSocketAddress() + ": " + ex.getMessage());
         }
-
-        boolean[] ready = new boolean[remoteNodes.size()];
-        int readyCount = 0;
-
-        log("Waiting for remote nodes to become reachable...");
-
-        while (readyCount < remoteNodes.size() && running.get()) {
-            for (int i = 0; i < remoteNodes.size(); i++) {
-                if (ready[i]) {
-                    continue;
-                }
-
-                NodeInfo node = remoteNodes.get(i);
-
-                try (Socket socket = new Socket()) {
-                    socket.connect(new InetSocketAddress(node.ip, PORT), 500);
-                    ready[i] = true;
-                    readyCount++;
-                    log("Remote node reachable: " + node.name);
-                } catch (IOException ex) {
-                }
-            }
-
-            if (readyCount < remoteNodes.size()) {
-                try {
-                    Thread.sleep(250);
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-            }
-        }
-
-        log("All remote nodes are reachable. Starting workers.");
     }
 
     private void startWorkerTasks() {
@@ -382,7 +346,8 @@ public class NodeO {
     }
 
     private void processWorkerEvents(int workerId) {
-        SplittableRandom workerRandom = new SplittableRandom(BASE_RANDOM_SEED + 0x9E3779B97F4A7C15L * (workerId + 1L));
+        SplittableRandom workerRandom = new SplittableRandom(
+                BASE_RANDOM_SEED + 0x9E3779B97F4A7C15L * (workerId + 1L));
 
         try {
             for (int eventNum = 0; eventNum < eventsPerThread && running.get(); eventNum++) {
@@ -410,12 +375,8 @@ public class NodeO {
         NodeInfo target = remoteNodes.get(random.nextInt(remoteNodes.size()));
         Event event = new Event(nodeName, target.name, timestamp);
 
-        sentEvents.increment();
-        sentToNode.get(target.name).increment();
-
-        logEvent("Worker-" + workerId + " SENT: " + event);
-
-        sendPool.submit(() -> sendEvent(target, event));
+        logEvent("Worker-" + workerId + " QUEUED FOR SEND: " + event);
+        sendPool.submit(() -> sendEvent(workerId, target, event));
     }
 
     private void processLocally(int workerId, long timestamp) {
@@ -423,8 +384,8 @@ public class NodeO {
         logEvent("Worker-" + workerId + " LOCAL: " + event);
     }
 
-    private void sendEvent(NodeInfo target, Event event) {
-        for (int attempt = 1; attempt <= SEND_RETRIES; attempt++) {
+    private void sendEvent(int workerId, NodeInfo target, Event event) {
+        for (int attempt = 1; attempt <= SEND_RETRIES && running.get(); attempt++) {
             try (Socket socket = new Socket()) {
                 socket.setTcpNoDelay(true);
                 socket.connect(new InetSocketAddress(target.ip, PORT), CONNECT_TIMEOUT_MS);
@@ -434,10 +395,14 @@ public class NodeO {
                     oos.flush();
                 }
 
+                sentEvents.increment();
+                sentToNode.get(target.name).increment();
+                logEvent("Worker-" + workerId + " SENT: " + event);
                 return;
             } catch (IOException ex) {
                 if (attempt == SEND_RETRIES) {
-                    logEvent("Failed to send event to " + target.name + ": " + ex.getMessage());
+                    logEvent("Worker-" + workerId + " FAILED TO SEND to "
+                            + target.name + ": " + ex.getMessage() + " | Event: " + event);
                 } else {
                     try {
                         Thread.sleep(50L * attempt);
