@@ -176,6 +176,8 @@ public class NodeS {
 
             workersLatch.await();
 
+	    Thread.sleep(3000);
+
             joinAllThreads(senderThreads);
             waitForCommunicationToFinish();
 
@@ -458,7 +460,6 @@ public class NodeS {
         NodeInfo target = remoteNodes.get(random.nextInt(remoteNodes.size()));
         Event event = new Event(nodeName, target.name, timestamp);
 
-        sentEvents.incrementAndGet();
         sentToNode.get(target.name).incrementAndGet();
         log("Thread-" + threadId + " SENT: " + event);
         eventsLogged.incrementAndGet();

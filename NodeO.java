@@ -267,7 +267,7 @@ public class NodeO {
     private void startServer() {
         serverThread = new Thread(() -> {
             try {
-                serverSocket = new ServerSocket(PORT);
+                serverSocket = new ServerSocket(PORT, 5000);
                 log("Node " + nodeName + " listening on port " + PORT);
 
                 while (running.get()) {
