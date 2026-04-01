@@ -526,7 +526,7 @@ public class CS4225HW4_Team6_Optimized {
                 System.exit(1);
             }
 
-            NodeO node = new NodeO(nodeName, nodeIP, numThreads, eventsPerThread, remoteSendPercent);
+            CS4225HW4_Team6_Optimized node = new CS4225HW4_Team6_Optimized(nodeName, nodeIP, numThreads, eventsPerThread, remoteSendPercent);
             node.start();
         } catch (NumberFormatException ex) {
             System.err.println("Error: Invalid number format in arguments");
