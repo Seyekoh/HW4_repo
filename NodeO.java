@@ -304,8 +304,7 @@ public class NodeO {
     }
 
     private void handleClient(Socket socket) {
-        try (Socket client = socket;
-             ObjectInputStream ois = new ObjectInputStream(client.getInputStream())) {
+        try (ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
 
             Event event = (Event) ois.readObject();
             clock.update(event.getTimestamp());
@@ -314,9 +313,13 @@ public class NodeO {
             totalProcessedEvents.increment();
 
             logEvent("RECEIVED: " + event);
-        } catch (IOException | ClassNotFoundException ex) {
+        } catch (IOException ex) {
             logEvent("Error handling client: " + ex.getMessage());
-        }
+        } catch (ClassNotFoundException ex) {
+	    logEvent("Error finding class: " + ex.getMessage());
+	} finally {
+	    closeSocket(socket);
+	}
     }
 
     private void waitForRemoteNodes() {
