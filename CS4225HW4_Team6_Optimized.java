@@ -508,8 +508,6 @@ public class CS4225HW4_Team6_Optimized {
         }
 
         log("Total remote send percent configured: " + remoteSendPercent + "%");
-        log("Actual send percentage: " + String.format("%.2f",
-                totalLocal > 0 ? (totalSent * 100.0 / totalLocal) : 0.0) + "%");
     }
 
     public static void main(String[] args) {
