@@ -260,7 +260,7 @@ public class NodeS {
     private void startServer() {
         serverThread = new Thread(() -> {
             try {
-                serverSocket = new ServerSocket(port);
+                serverSocket = new ServerSocket(port, 5000);
                 log("Node " + nodeName + " listening on port " + port);
 
                 while (running) {
@@ -487,21 +487,32 @@ public class NodeS {
      */
     private void sendEvent(NodeInfo target, Event event) {
         Thread sender = new Thread(() -> {
-            senderStarted();
-            try (Socket socket = new Socket(target.ip, port);
-                 ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
-                oos.writeObject(event);
-                oos.flush();
-            } catch (IOException ex) {
-                log("Failed to send event to " + target.name + ": " + ex.getMessage());
-                eventsLogged.incrementAndGet();
-            } finally {
-                senderFinished();
-            }
-        });
-
-        senderThreads.add(sender);
-        sender.start();
+	    int attempts = 0;
+	    int maxAttempts = 5;
+	    boolean success = false;
+	    
+	    while (!success && attempts < maxAttempts) {
+	        try (Socket socket = new Socket(target.ip, port);
+		     ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
+		    oos.writeObject(event);
+		    oos.flush();
+		    success = true;
+		    sentEvents.incrementAndGet();
+	        } catch (IOException ex) {
+		    attempts++;
+		    if (attempts < maxAttempts) {
+			try {
+			    Thread.sleep(50);
+			} catch (InterruptedException ie) {
+			    Thread.currentThread().interrupt();
+			}
+		    } else {
+			log("Failed to send to " + target.name + " after " + maxAttempts + " tries.");
+		    }
+		}
+	    }	
+	});
+	sender.start();
     }
 
     /**
