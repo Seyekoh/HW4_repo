@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.*;
  * @author James Bridges, Brailey Sharpe
  * @version Spring 2026
  */
-public class NodeS {
+public class CS4225HW4_Team6_Suboptimal {
     // Command-line parameters
     private final String nodeName;
     private final int numThreads;
@@ -64,7 +64,7 @@ public class NodeS {
      * @param eventsPerThread   number of events each worker thread will process
      * @param remoteSendPercent percentave chanve to send event to remote node
      */
-    public NodeS(String nodeName, String nodeIP, int numThreads, int eventsPerThread, int remoteSendPercent) {
+    public CS4225HW4_Team6_Suboptimal(String nodeName, String nodeIP, int numThreads, int eventsPerThread, int remoteSendPercent) {
         this.nodeName = nodeName;
         this.numThreads = numThreads;
         this.eventsPerThread = eventsPerThread;
